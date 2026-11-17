@@ -88,14 +88,16 @@ system(cmd);
 copyfile(blendFile, fullfile(blendRunDir, 'opu_scene.blend'));
 copyfile(animBlend, fullfile(blendRunDir, 'opu_scene_animated.blend'));
 
+texRunDir = fullfile(runDir, 'textures');
+if ~isfolder(texRunDir), mkdir(texRunDir); end
+copyfile(fullfile(SIM_DIR, 'textures', '*'), texRunDir);
+
 % 4. Определение последнего кадра из ground_truth/animation.csv
 T = readtable(animFile);
 maxFrame = max(T.frame);
 lastFrame = min(lastFrame, maxFrame);
 
-% 4.1. Идеальные углы ротора
-anglesFile = fullfile(GT_DIR, 'rotor_angles_true.csv');
-export_rotor_angles(T, anglesFile);
+% 4.1. rotor_angles_true.csv уже создан в export_animation
 
 % 4.2. Снимок конфигурации и ground truth в папку прогона
 copyfile(fullfile(GT_DIR, 'animation.csv'), gtRunDir);

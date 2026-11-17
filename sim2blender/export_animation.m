@@ -2,8 +2,9 @@ function data = export_animation()
 %   Экспорт положений тел из opu_export.slx.
 %
 %   Результаты:
-%     ground_truth/animation.csv      — frame,t,body,4x4 матрица
-%     ground_truth/animation_data.mat — те же данные для ground truth
+%     ground_truth/animation.csv        — frame,t,body,4x4 матрица
+%     ground_truth/animation_data.mat   — те же данные для ground truth
+%     ground_truth/rotor_angles_true.csv — углы из датчиков сочленений
 
 here = fileparts(mfilename('fullpath'));
 root = fileparts(here);
@@ -70,7 +71,20 @@ end
 fclose(fid);
 save(fullfile(gtDir, 'animation_data.mat'), 'data');
 
+% Истинные углы берём из датчиков сочленений.
+phi = interp1(out.angle_true.Time, out.angle_true.Data, t, 'linear');
+theta = interp1(out.theta_true.Time, out.theta_true.Data, t, 'linear');
+
+angles = table( ...
+    (0:Nt-1)', t, phi, theta, rad2deg(phi), rad2deg(theta), ...
+    'VariableNames', {'frame', 't', 'phi_rad', 'theta_rad', ...
+                      'phi_deg', 'theta_deg'});
+
+anglesFile = fullfile(gtDir, 'rotor_angles_true.csv');
+writetable(angles, anglesFile);
+
 fprintf('Записано: %s\n', csvFile);
+fprintf('Записано: %s\n', anglesFile);
 fprintf('  кадров: %d\n', Nt);
 fprintf('  тел: %d\n', numel(bodies));
 fprintf('  строк: %d\n', Nt*numel(bodies));

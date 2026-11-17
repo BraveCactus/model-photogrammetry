@@ -98,15 +98,21 @@ def add_body_mesh(body):
     return empty
 
 
-def add_marker(marker, rotor_empty, scene_dir):
+def add_marker(marker, parent_empty, scene_dir):
     size = marker["plane_size"]
     bpy.ops.mesh.primitive_plane_add(size=size, location=(0, 0, 0))
     obj = bpy.context.object
     obj.name = f"Marker_{marker['id']:02d}"
 
-    obj.parent = rotor_empty
-    obj.matrix_parent_inverse = rotor_empty.matrix_world.inverted()
-    obj.matrix_world = Matrix(marker["T_RM"])
+    transform = (
+        marker["T_RM"]
+        if marker["body"] == "Rotor"
+        else marker["T_SM"]
+    )
+
+    obj.parent = parent_empty
+    obj.matrix_parent_inverse = parent_empty.matrix_world.inverted()
+    obj.matrix_world = Matrix(transform)
 
     texture = os.path.join(scene_dir, marker["texture"])
     if not os.path.isfile(texture):
@@ -190,9 +196,9 @@ def main():
     for body in spec["bodies"]:
         body_empties[body["name"]] = add_body_mesh(body)
 
-    rotor = body_empties["Rotor"]
     for marker in spec["markers"]:
-        add_marker(marker, rotor, scene_dir)
+        parent = body_empties[marker["body"]]
+        add_marker(marker, parent, scene_dir)
 
     for cam in spec["cameras"]:
         add_camera(cam)

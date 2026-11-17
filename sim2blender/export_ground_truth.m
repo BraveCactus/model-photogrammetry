@@ -74,6 +74,10 @@ for ci = 1:numel(cameras)
         T_WR = data.T(:,:,n,rotorIdx);
 
         for mi = 1:Nm
+            if strcmp(markers.body{mi}, 'Stator')
+                continue;
+            end
+
             T_RM = markers.T_RM{mi};
 
             X_W = T_WR * T_RM * C;      % лабораторные координаты углов
