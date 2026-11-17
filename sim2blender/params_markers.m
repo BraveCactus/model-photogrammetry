@@ -34,7 +34,7 @@ m.plane_corners(:,3) = 0;
 m.textureDir = 'textures';
 m.texture_px = 512;
 m.margin_px = round(m.margin * m.texture_px);
-m.T_BM = cell(1, m.count);
+m.T_RM = cell(1, m.count);
 m.texture = cell(1, m.count);
 
 % 4 маркера на верхней плоскости.
@@ -46,7 +46,7 @@ top_xy = [-0.085 -0.09;
 for k = 1:4
     T = eye(4);
     T(1:3,4) = [top_xy(k,1); top_xy(k,2); m.top_z + m.z_offset];
-    m.T_BM{k} = T;
+    m.T_RM{k} = T;
     m.texture{k} = sprintf('%s/aruco_%02d.png', m.textureDir, m.ids(k));
 end
 
@@ -54,14 +54,14 @@ end
 T = eye(4);
 T(1:3,1:3) = rotx(-90) * rotz(180);
 T(1:3,4) = [0; m.side_y + m.z_offset; 0];
-m.T_BM{5} = T;
+m.T_RM{5} = T;
 m.texture{5} = sprintf('%s/aruco_%02d.png', m.textureDir, m.ids(5));
 
 % -Y торец: нормаль -Y, локальный +Y маркера направлен вверх (+Z).
 T = eye(4);
 T(1:3,1:3) = rotx(90);
 T(1:3,4) = [0; -m.side_y - m.z_offset; 0];
-m.T_BM{6} = T;
+m.T_RM{6} = T;
 m.texture{6} = sprintf('%s/aruco_%02d.png', m.textureDir, m.ids(6));
 end
 

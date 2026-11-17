@@ -11,14 +11,17 @@ end
 mode = lower(char(mode));
 
 BLENDER       = 'D:\Programs\blender\blender.exe';
-PROJECT_ROOT  = 'D:\My\Projects\diplom\photogram\model\photo_opu';
+PROJECT_ROOT  = fileparts(mfilename('fullpath'));
+WORKSPACE     = fileparts(PROJECT_ROOT);
 SIM_DIR       = fullfile(PROJECT_ROOT, 'sim2blender');
 GT_DIR        = fullfile(SIM_DIR, 'ground_truth');
 BLEND_DIR     = fullfile(SIM_DIR, 'blends');
-OUTPUT_DIR    = fullfile(PROJECT_ROOT, 'output');
+OUTPUT_ROOT   = fullfile(WORKSPACE, 'output', 'runs');
+LIGHTING_FILE = fullfile(SIM_DIR, 'lighting.json');
 
 if ~isfolder(GT_DIR),    mkdir(GT_DIR);    end
 if ~isfolder(BLEND_DIR), mkdir(BLEND_DIR); end
+if ~isfolder(OUTPUT_ROOT), mkdir(OUTPUT_ROOT); end
 
 CAMERAS_PREVIEW = {'cam1'};
 CAMERAS_FULL    = {'cam1'};
@@ -44,10 +47,19 @@ switch mode
 end
 
 run_id = sprintf('%s_%s', datestr(now, 'yyyymmdd_HHMMSS'), mode);
-frameRoot = fullfile(OUTPUT_DIR, 'frames', run_id);
-videoDir  = fullfile(OUTPUT_DIR, 'videos', run_id);
-if ~isfolder(frameRoot), mkdir(frameRoot); end
-if ~isfolder(videoDir),  mkdir(videoDir); end
+runDir = fullfile(OUTPUT_ROOT, run_id);
+configDir = fullfile(runDir, 'config');
+gtRunDir = fullfile(runDir, 'ground_truth');
+frameRoot = fullfile(runDir, 'frames');
+videoDir  = fullfile(runDir, 'videos');
+blendRunDir = fullfile(runDir, 'blender');
+
+if ~isfolder(runDir),      mkdir(runDir);      end
+if ~isfolder(configDir),   mkdir(configDir);   end
+if ~isfolder(gtRunDir),    mkdir(gtRunDir);    end
+if ~isfolder(frameRoot),   mkdir(frameRoot);   end
+if ~isfolder(videoDir),    mkdir(videoDir);    end
+if ~isfolder(blendRunDir), mkdir(blendRunDir); end
 
 fprintf('=== run_render: %s ===\n', run_id);
 
@@ -59,8 +71,9 @@ sceneFile = fullfile(SIM_DIR, 'scene.json');
 blendFile = fullfile(BLEND_DIR, 'opu_scene.blend');
 buildScript = fullfile(SIM_DIR, 'blender', 'build_scene.py');
 
-cmd = sprintf('"%s" --background --python "%s" -- --scene "%s" --blend "%s"', ...
-    BLENDER, buildScript, sceneFile, blendFile);
+cmd = sprintf(['"%s" --background --python "%s" -- ' ...
+    '--scene "%s" --blend "%s" --lighting "%s"'], ...
+    BLENDER, buildScript, sceneFile, blendFile, LIGHTING_FILE);
 system(cmd);
 
 % 3. Создание анимации
@@ -72,6 +85,9 @@ cmd = sprintf('"%s" --background --python "%s" -- --blend "%s" --anim "%s" --out
     BLENDER, makeScript, blendFile, animFile, animBlend);
 system(cmd);
 
+copyfile(blendFile, fullfile(blendRunDir, 'opu_scene.blend'));
+copyfile(animBlend, fullfile(blendRunDir, 'opu_scene_animated.blend'));
+
 % 4. Определение последнего кадра из ground_truth/animation.csv
 T = readtable(animFile);
 maxFrame = max(T.frame);
@@ -80,6 +96,21 @@ lastFrame = min(lastFrame, maxFrame);
 % 4.1. Идеальные углы ротора
 anglesFile = fullfile(GT_DIR, 'rotor_angles_true.csv');
 export_rotor_angles(T, anglesFile);
+
+% 4.2. Снимок конфигурации и ground truth в папку прогона
+copyfile(fullfile(GT_DIR, 'animation.csv'), gtRunDir);
+copyfile(fullfile(GT_DIR, 'animation_data.mat'), gtRunDir);
+copyfile(fullfile(GT_DIR, 'rotor_angles_true.csv'), gtRunDir);
+copyfile(fullfile(GT_DIR, 'summary.txt'), gtRunDir);
+camRunDir = fullfile(gtRunDir, 'cam1');
+if ~isfolder(camRunDir), mkdir(camRunDir); end
+copyfile(fullfile(GT_DIR, 'cam1', '*'), camRunDir);
+
+copyfile(sceneFile, fullfile(configDir, 'scene.json'));
+copyfile(fullfile(SIM_DIR, 'params_markers.m'), configDir);
+copyfile(fullfile(SIM_DIR, 'params_cameras.m'), configDir);
+copyfile(fullfile(SIM_DIR, 'scene_definition.m'), configDir);
+copyfile(LIGHTING_FILE, configDir);
 
 % 5. Рендер PNG
 renderScript = fullfile(SIM_DIR, 'blender', 'render_baked.py');
@@ -99,8 +130,28 @@ for k = 1:numel(cameras)
     fprintf('Видео: %s\n', videoFile);
 end
 
-fprintf('Готово: %s\n', videoDir);
-winopen(videoDir);
+scene = jsondecode(fileread(sceneFile));
+camIdx = find(strcmp({scene.cameras.name}, 'cam1'), 1);
+runInfo = struct();
+runInfo.run_id = run_id;
+runInfo.created_at = datestr(now, 30);
+runInfo.status = 'completed';
+runInfo.mode = mode;
+runInfo.percent = percent;
+runInfo.model = 'opu_export';
+runInfo.cameras = cameras;
+runInfo.frames = lastFrame + 1;
+runInfo.fps = scene.render.fps;
+runInfo.resolution = scene.cameras(camIdx).resolution;
+runInfo.marker_count = numel(scene.markers);
+runInfo.lighting = 'lighting.json';
+
+fid = fopen(fullfile(runDir, 'run.json'), 'w');
+fprintf(fid, '%s', jsonencode(runInfo, 'PrettyPrint', true));
+fclose(fid);
+
+fprintf('Готово: %s\n', runDir);
+winopen(runDir);
 end
 
 function encode_video(frameDir, videoFile, fps)

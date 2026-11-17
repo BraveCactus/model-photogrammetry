@@ -27,7 +27,7 @@ bodies(4) = struct('name', 'Rotor', 'shape', 'brick', ...
     'color', [0.22 0.23 0.25]);
 
 markers = struct('id', {}, 'body', {}, 'size', {}, 'plane_size', {}, ...
-    'T_BM', {}, 'texture', {}, 'corners_local', {}, ...
+    'T_RM', {}, 'texture', {}, 'corners_local', {}, ...
     'plane_corners_local', {});
 
 for k = 1:m.count
@@ -35,7 +35,7 @@ for k = 1:m.count
     markers(k).body = m.body;
     markers(k).size = m.size;
     markers(k).plane_size = m.plane_size;
-    markers(k).T_BM = m.T_BM{k};
+    markers(k).T_RM = m.T_RM{k};
     markers(k).texture = m.texture{k};
     markers(k).corners_local = m.corner_order;
     markers(k).plane_corners_local = m.plane_corners;

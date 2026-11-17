@@ -71,12 +71,12 @@ for ci = 1:numel(cameras)
         'x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3\n']);
 
     for n = 1:Nt
-        T_WB = data.T(:,:,n,rotorIdx);
+        T_WR = data.T(:,:,n,rotorIdx);
 
         for mi = 1:Nm
-            T_BM = markers.T_BM{mi};
+            T_RM = markers.T_RM{mi};
 
-            X_W = T_WB * T_BM * C;      % лабораторные координаты углов
+            X_W = T_WR * T_RM * C;      % лабораторные координаты углов
             X_C = T_WC \ X_W;           % координаты углов в СК камеры
 
             % Проекция в пиксели.
