@@ -8,7 +8,11 @@ from mathutils import Matrix, Vector
 def parse_args():
     argv = sys.argv
     argv = argv[argv.index("--") + 1:] if "--" in argv else []
-    args = {"scene": "scene.json", "blend": "blends/opu_scene.blend"}
+    args = {
+        "scene": "scene.json",
+        "blend": "blends/opu_scene.blend",
+        "lighting": "lighting.json",
+    }
     i = 0
     while i < len(argv):
         if argv[i] == "--scene":
@@ -16,6 +20,9 @@ def parse_args():
             i += 2
         elif argv[i] == "--blend":
             args["blend"] = argv[i + 1]
+            i += 2
+        elif argv[i] == "--lighting":
+            args["lighting"] = argv[i + 1]
             i += 2
         else:
             i += 1
@@ -99,7 +106,7 @@ def add_marker(marker, rotor_empty, scene_dir):
 
     obj.parent = rotor_empty
     obj.matrix_parent_inverse = rotor_empty.matrix_world.inverted()
-    obj.matrix_world = Matrix(marker["T_BM"])
+    obj.matrix_world = Matrix(marker["T_RM"])
 
     texture = os.path.join(scene_dir, marker["texture"])
     if not os.path.isfile(texture):
@@ -129,17 +136,13 @@ def add_camera(cam):
     return obj
 
 
-def add_lights():
-    for name, loc, energy, size in [
-        ("Key", (2.0, -2.0, 3.0), 300.0, 2.5),
-        ("Fill", (-2.0, -1.0, 2.0), 120.0, 3.0),
-        ("Rim", (0.0, 2.5, 3.0), 180.0, 2.0),
-    ]:
-        bpy.ops.object.light_add(type="AREA", location=loc)
+def add_lights(spec):
+    for item in spec["lights"]:
+        bpy.ops.object.light_add(type="AREA", location=item["location"])
         light = bpy.context.object
-        light.name = name
-        light.data.energy = energy
-        light.data.size = size
+        light.name = item["name"]
+        light.data.energy = item["energy"]
+        light.data.size = item["size"]
         direction = Vector((0.0, 0.0, 0.0)) - light.location
         light.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
 
@@ -149,8 +152,8 @@ def add_lights():
         bpy.context.scene.world = world
     world.use_nodes = True
     bg = next(n for n in world.node_tree.nodes if n.type == "BACKGROUND")
-    bg.inputs["Color"].default_value = (0.15, 0.15, 0.15, 1.0)
-    bg.inputs["Strength"].default_value = 1.0
+    bg.inputs["Color"].default_value = tuple(spec["world"]["color"])
+    bg.inputs["Strength"].default_value = spec["world"]["strength"]
 
 
 def setup_render(scene):
@@ -171,10 +174,13 @@ def main():
     args = parse_args()
     scene_path = os.path.abspath(args["scene"])
     blend_path = os.path.abspath(args["blend"])
+    lighting_path = os.path.abspath(args["lighting"])
     scene_dir = os.path.dirname(scene_path)
 
     with open(scene_path, "r", encoding="utf-8") as f:
         spec = json.load(f)
+    with open(lighting_path, "r", encoding="utf-8") as f:
+        lighting = json.load(f)
 
     clear_scene()
     scene = bpy.context.scene
@@ -191,7 +197,7 @@ def main():
     for cam in spec["cameras"]:
         add_camera(cam)
 
-    add_lights()
+    add_lights(lighting)
 
     for name, empty in body_empties.items():
         empty.matrix_world = Matrix.Identity(4)
